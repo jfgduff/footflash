@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">footflash</string>
+    <string name="title_activity_main">footflash</string>
+    <string name="package_name">com.footflas.app</string>
+    <string name="custom_url_scheme">com.footflas.app</string>
+</resources>
