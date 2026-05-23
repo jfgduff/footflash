@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const NEWS_API_KEY = "406c147fb9194170aae3633a93c98988";
+const GNEWS_API_KEY = "d97884713f492fa4b5446fe175e5af00";
 const SCORES_API_KEY = "ac02466bdcmsh5ac5d1975f027dcp196cb4jsn84b8845b8b8c";
 
 const CATEGORIES = [
@@ -63,7 +63,10 @@ export default function SoccerNewsApp() {
   useEffect(() => { fetchScores(); }, []);
   useEffect(() => { if (articles.length > 0) fetchTransfers(); }, [articles]);
 
-  const SOCCER_SOURCES = "bbc-sport,espn,fox-sports,the-guardian-uk,bleacher-report,talksport,the-sport-bible,four-four-two,lequipe";
+  function getImage(article) { return article.image || article.urlToImage || null; }
+  function getUrl(article) { return article.url; }
+  function getSource(article) { return article.source?.name || article.source?.url || ""; }
+  function getDate(article) { return article.publishedAt; }
 
   async function fetchNews(cat) {
     setLoading(true);
@@ -71,15 +74,13 @@ export default function SoccerNewsApp() {
     setSelectedArticle(null);
     try {
       const isLigue1 = cat.label === "Ligue 1";
-      const sourceParam = isLigue1 ? "" : `&sources=${SOCCER_SOURCES}`;
-      const domainParam = isLigue1 ? "&domains=lequipe.fr,sofoot.com,footmercato.net,rmcsport.bfmtv.com" : "";
-      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(cat.query)}${sourceParam}${domainParam}&sortBy=publishedAt&pageSize=30&apiKey=${NEWS_API_KEY}`;
+      const lang = isLigue1 ? "fr" : "en";
+      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(cat.query)}&lang=${lang}&max=20&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.status !== "ok") throw new Error(data.message || "Erreur de chargement");
-      const filtered = (data.articles || []).filter(a => a.title && a.title !== "[Removed]" && (isLigue1 || a.urlToImage));
-      setArticles(filtered);
-      if (filtered.length > 0) setTickerItems(filtered.slice(0, 8).map(a => `▶ ${a.title}`));
+      if (!data.articles) throw new Error(data.message || "Erreur de chargement");
+      setArticles(data.articles);
+      if (data.articles.length > 0) setTickerItems(data.articles.slice(0, 8).map(a => `▶ ${a.title}`));
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
@@ -105,13 +106,10 @@ export default function SoccerNewsApp() {
 
   async function fetchTransfers() {
     try {
-      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent("soccer transfer rumour deal")}&sources=bbc-sport,talksport,the-guardian-uk,bleacher-report,four-four-two&language=en&sortBy=publishedAt&pageSize=8&apiKey=${NEWS_API_KEY}`;
+      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent("soccer football transfer signing deal")}&lang=en&max=8&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.status === "ok") {
-        const filtered = (data.articles || []).filter(a => a.title && a.title !== "[Removed]");
-        if (filtered.length > 0) { setTransfers(filtered); return; }
-      }
+      if (data.articles?.length > 0) { setTransfers(data.articles); return; }
     } catch {}
     const fallback = articles.filter(a =>
       a.title?.toLowerCase().includes("transfer") || a.title?.toLowerCase().includes("sign") || a.title?.toLowerCase().includes("deal")
@@ -126,11 +124,11 @@ export default function SoccerNewsApp() {
     setError(null);
     setSelectedArticle(null);
     try {
-      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery + " soccer")}&sources=${SOCCER_SOURCES}&sortBy=publishedAt&pageSize=20&apiKey=${NEWS_API_KEY}`;
+      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(searchQuery + " soccer football")}&lang=en&max=20&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.status !== "ok") throw new Error(data.message || "Erreur de recherche");
-      setArticles((data.articles || []).filter(a => a.title && a.title !== "[Removed]"));
+      if (!data.articles) throw new Error(data.message || "Erreur de recherche");
+      setArticles(data.articles || []);
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
@@ -230,11 +228,11 @@ export default function SoccerNewsApp() {
                 background: "none", border: "none", color: ACCENT, cursor: "pointer",
                 fontSize: 13, marginBottom: 16, padding: 0, fontWeight: 700,
               }}>← Retour aux articles</button>
-              {selectedArticle.urlToImage && (
-                <img src={selectedArticle.urlToImage} alt="" style={{ width: "100%", maxHeight: 300, objectFit: "cover", borderRadius: 3, marginBottom: 16 }} onError={e => e.target.style.display = "none"} />
+              {getImage(selectedArticle) && (
+                <img src={getImage(selectedArticle)} alt="" style={{ width: "100%", maxHeight: 300, objectFit: "cover", borderRadius: 3, marginBottom: 16 }} onError={e => e.target.style.display = "none"} />
               )}
               <div style={{ fontSize: 11, color: ACCENT, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-                {selectedArticle.source?.name} · {timeAgo(selectedArticle.publishedAt)}
+                {getSource(selectedArticle)} · {timeAgo(getDate(selectedArticle))}
               </div>
               <h1 style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.3, marginBottom: 12, color: "#111" }}>{selectedArticle.title}</h1>
               {loadingArticle ? (
@@ -247,9 +245,9 @@ export default function SoccerNewsApp() {
                   <div style={{ lineHeight: 1.8, fontSize: 15, color: "#333" }}>
                     {articleContent.split("\n\n").map((p, i) => <p key={i} style={{ marginBottom: 16 }}>{p}</p>)}
                   </div>
-                  <a href={selectedArticle.url} target="_blank" rel="noopener noreferrer"
+                  <a href={getUrl(selectedArticle)} target="_blank" rel="noopener noreferrer"
                     style={{ display: "inline-block", marginTop: 16, color: ACCENT, fontSize: 13, fontWeight: 700 }}>
-                    Lire l'article original sur {selectedArticle.source?.name} →
+                    Lire l'article original sur {getSource(selectedArticle)} →
                   </a>
                 </>
               )}
@@ -277,12 +275,12 @@ export default function SoccerNewsApp() {
                   onMouseEnter={e => e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)"}
                   onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.08)"}
                 >
-                  {articles[0].urlToImage && (
-                    <img src={articles[0].urlToImage} alt="" style={{ width: 220, height: 140, objectFit: "cover", flexShrink: 0 }} onError={e => e.target.style.display = "none"} />
+                  {getImage(articles[0]) && (
+                    <img src={getImage(articles[0])} alt="" style={{ width: 220, height: 140, objectFit: "cover", flexShrink: 0 }} onError={e => e.target.style.display = "none"} />
                   )}
                   <div style={{ padding: "16px 20px", flex: 1 }}>
                     <div style={{ fontSize: 10, color: ACCENT, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
-                      🔥 À LA UNE · {articles[0].source?.name} · {timeAgo(articles[0].publishedAt)}
+                      🔥 À LA UNE · {getSource(articles[0])} · {timeAgo(getDate(articles[0]))}
                     </div>
                     <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111", lineHeight: 1.3, marginBottom: 8 }}>{articles[0].title}</h2>
                     <p style={{ fontSize: 13, color: "#666", lineHeight: 1.5 }}>{articles[0].description?.slice(0, 150)}{articles[0].description?.length > 150 ? "..." : ""}</p>
@@ -311,12 +309,12 @@ export default function SoccerNewsApp() {
                     onMouseEnter={e => e.currentTarget.style.background = "#f0f4ff"}
                     onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#fafafa"}
                   >
-                    {article.urlToImage && (
-                      <img src={article.urlToImage} alt="" style={{ width: 80, height: 55, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} onError={e => e.target.style.display = "none"} />
+                    {getImage(article) && (
+                      <img src={getImage(article)} alt="" style={{ width: 80, height: 55, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} onError={e => e.target.style.display = "none"} />
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 10, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>
-                        {categoryEmoji(article.title, article.description)} {article.source?.name} · {timeAgo(article.publishedAt)}
+                        {categoryEmoji(article.title, article.description)} {getSource(article)} · {timeAgo(getDate(article))}
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: "#111", lineHeight: 1.3, marginBottom: 3 }}>
                         {article.title}
@@ -382,7 +380,7 @@ export default function SoccerNewsApp() {
                     {t.title?.slice(0, 75)}{t.title?.length > 75 ? "..." : ""}
                   </div>
                   <div style={{ fontSize: 10, color: ACCENT, fontWeight: 700 }}>
-                    {t.source?.name} · {timeAgo(t.publishedAt)}
+                    {getSource(t)} · {timeAgo(getDate(t))}
                   </div>
                 </div>
               </a>
