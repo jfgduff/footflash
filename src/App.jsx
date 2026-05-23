@@ -75,7 +75,7 @@ export default function SoccerNewsApp() {
     try {
       const isLigue1 = cat.label === "Ligue 1";
       const lang = isLigue1 ? "fr" : "en";
-      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(cat.query)}&lang=${lang}&max=20&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
+      const url = `/api/news?q=${encodeURIComponent(cat.query)}&lang=${lang}`;
       const res = await fetch(url);
       const data = await res.json();
       if (!data.articles) throw new Error(data.message || "Erreur de chargement");
@@ -106,7 +106,7 @@ export default function SoccerNewsApp() {
 
   async function fetchTransfers() {
     try {
-      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent("soccer football transfer signing deal")}&lang=en&max=8&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
+      const url = `/api/news?q=${encodeURIComponent("soccer football transfer signing deal")}&lang=en`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.articles?.length > 0) { setTransfers(data.articles); return; }
@@ -124,7 +124,7 @@ export default function SoccerNewsApp() {
     setError(null);
     setSelectedArticle(null);
     try {
-      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(searchQuery + " soccer football")}&lang=en&max=20&sortby=publishedAt&apikey=${GNEWS_API_KEY}`;
+      const url = `/api/news?q=${encodeURIComponent(searchQuery + " soccer football")}&lang=en`;
       const res = await fetch(url);
       const data = await res.json();
       if (!data.articles) throw new Error(data.message || "Erreur de recherche");
